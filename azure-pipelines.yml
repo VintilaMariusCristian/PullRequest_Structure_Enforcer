@@ -1,0 +1,30 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+steps:
+
+  - bash: |
+     
+     
+     pr_title=$(curl -u azdo:$SYSTEM_ACCESSTOKEN \  --location --request GET $(System.CollectionUri)/$(System.TeamProject)/_apis/git/repositories/$(Build.Repository.ID)/pullrequests/$(System.PullRequest.PullRequestId)?api-version=6.0  \ | jq -r .title)
+  
+     echo "##vso[task.setvariable variable=pr_title;]$pr_title"
+     echo $pr_title 
+   
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    displayName: Extract pull request title
+    # condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
+    # condition: and(in(variables['Build.Reason'], 'IndividualCI'), eq(variables['Build.SourceBranch'], 'refs/heads/main'), contains(variables['Build.SourceVersionMessage'], 'PullRequest') )
+
+  - task: PowerShell@2
+    displayName: 'Validate the PR title'
+    inputs:
+      targetType: 'filePath'
+      filePath: 'validate.ps1'
+      arguments: '"$(pr_title)"'
+      failOnStderr: true
+    condition: and(succeeded(), not(startsWith(variables['pr_title'], '**SKIPTEST**')))
+
